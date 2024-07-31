@@ -34,7 +34,11 @@ jobs:
       run: echo "time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
     - name: Build
-      run: go build -v -ldflags "-X 'main.version=${{ steps.vars.outputs.commit }} at ${{ steps.buildtime.outputs.time }}'" -o server_exporter ./...
+      run:
+        go build -v \
+          -ldflags "-X main.version='${{ steps.vars.outputs.commit }} at ${{ steps.buildtime.outputs.time }}'" \
+          -ldflags '-extldflags "-static"' \
+          -o server_exporter ./...
 
     - name: Test
       run: go test -v ./...
