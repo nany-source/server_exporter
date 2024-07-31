@@ -36,11 +36,7 @@ jobs:
 
     - name: Build
       run: |
-        export CGO_ENABLED=1
-        export CC=musl-gcc
-        go build -v \
-          -ldflags "-X main.version='${{ steps.vars.outputs.commit }} at ${{ steps.buildtime.outputs.time }}' -linkmode external -extldflags '-static'" \
-          -o server_exporter ./...
+        CGO_ENABLED=1 CC=musl-gcc go build -v -ldflags "-linkmode external -extldflags '-static' -X 'main.version=${{ steps.vars.outputs.commit }} at ${{ steps.buildtime.outputs.time }}'" -o server_exporter ./...
 
     - name: Test
       run: go test -v ./...
