@@ -45,5 +45,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: server_exporter
-        path: server_exporter
-        retention-days: 30
+        path: |
+          server_exporter
+          server_exporter.json
