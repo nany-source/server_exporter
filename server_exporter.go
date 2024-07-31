@@ -141,8 +141,8 @@ func loadConfig(filename string) (*Settings, error) {
 	return config, nil
 }
 
-// 收集数据
-func gatherData() {
+// 收集数据协程
+func gatherDataRoutine() {
 	// 函数结束时通知等待组已完成
 	defer wg.Done()
 
@@ -154,56 +154,62 @@ func gatherData() {
 		select {
 		case <-uploadChan:
 			// 收到上传器通道的信号, 则退出循环
-			log.Println("Upload routine stopped! Gathering routine will exit.")
+			log.Println("Upload routine stopped! Gathering routine will stopped.")
 			return
 		case <-ticker.C:
-			// 获取内存占用率
-			memTotal, memUsed, err := getMemInfo()
-			if err != nil {
-				log.Println("Error getting memory info: ", err.Error())
-				continue
-			}
-			// 获取cpu信息
-			cpuTotal, cpuIdle, err := getCpuTimes()
-			if err != nil {
-				log.Println("Error getting cpu info: ", err.Error())
-				continue
-			}
-
-			// 上互斥锁
-			mu.Lock()
-			if cpuMemInfo.timestamp == 0 {
-				cpuMemInfo.timestamp = uint64(time.Now().Unix())
-			}
-
-			// 内存占用率写入数组
-			if memUsed > 0 {
-				cpuMemInfo.Mem.Total = memTotal
-				cpuMemInfo.Mem.UsedList = append(cpuMemInfo.Mem.UsedList, memUsed)
-			}
-			// 计算cpu占用率
-			if cpuTotal > 0 {
-				// 首次收集因为没多于1个的时间线收集, 则不计算cpu占用率
-				if cpuMemInfo.isFirstgather {
-					cpuMemInfo.Cpu.Total = cpuTotal
-					cpuMemInfo.Cpu.Idle = cpuIdle
-					cpuMemInfo.isFirstgather = false
-				} else {
-					// 存在则计算2个时间段内的cpu占用率
-					totalDIff := cpuTotal - cpuMemInfo.Cpu.Total
-					idleDiff := cpuIdle - cpuMemInfo.Cpu.Idle
-					cpuMemInfo.Cpu.UsageList = append(cpuMemInfo.Cpu.UsageList, float64(totalDIff-idleDiff)/float64(totalDIff)*100)
-
-					// 把当前时间赋值给上一次时间
-					cpuMemInfo.Cpu.Total = cpuTotal
-					cpuMemInfo.Cpu.Idle = cpuIdle
-				}
-			}
-			// 解除互斥锁
-			mu.Unlock()
-			// log.Println("Data gathered successfully!", cpuMemInfo.Cpu.UsageList, cpuMemInfo.Mem.UsedList)
+			// 每6秒收集一次数据
+			gatherData()
 		}
 	}
+}
+
+// 收集数据
+func gatherData() {
+	// 获取内存占用率
+	memTotal, memUsed, err := getMemInfo()
+	if err != nil {
+		log.Println("Error getting memory info: ", err.Error())
+		return
+	}
+	// 获取cpu信息
+	cpuTotal, cpuIdle, err := getCpuTimes()
+	if err != nil {
+		log.Println("Error getting cpu info: ", err.Error())
+		return
+	}
+
+	// 上互斥锁
+	mu.Lock()
+	if cpuMemInfo.timestamp == 0 {
+		cpuMemInfo.timestamp = uint64(time.Now().Unix())
+	}
+
+	// 内存占用率写入数组
+	if memUsed > 0 {
+		cpuMemInfo.Mem.Total = memTotal
+		cpuMemInfo.Mem.UsedList = append(cpuMemInfo.Mem.UsedList, memUsed)
+	}
+	// 计算cpu占用率
+	if cpuTotal > 0 {
+		// 首次收集因为没多于1个的时间线收集, 则不计算cpu占用率
+		if cpuMemInfo.isFirstgather {
+			cpuMemInfo.Cpu.Total = cpuTotal
+			cpuMemInfo.Cpu.Idle = cpuIdle
+			cpuMemInfo.isFirstgather = false
+		} else {
+			// 存在则计算2个时间段内的cpu占用率
+			totalDIff := cpuTotal - cpuMemInfo.Cpu.Total
+			idleDiff := cpuIdle - cpuMemInfo.Cpu.Idle
+			cpuMemInfo.Cpu.UsageList = append(cpuMemInfo.Cpu.UsageList, float64(totalDIff-idleDiff)/float64(totalDIff)*100)
+
+			// 把当前时间赋值给上一次时间
+			cpuMemInfo.Cpu.Total = cpuTotal
+			cpuMemInfo.Cpu.Idle = cpuIdle
+		}
+	}
+	// 解除互斥锁
+	mu.Unlock()
+	// log.Println("Data gathered successfully!", cpuMemInfo.Cpu.UsageList, cpuMemInfo.Mem.UsedList)
 }
 
 // 上传数据协程
@@ -225,7 +231,7 @@ func uploadDataRoutine(minute *int64, config *Settings, client *http.Client, buf
 		select {
 		// 如果程序需要停止, 则标记为停止
 		case <-exitChan:
-			log.Println("Program will exit. UploadData complete will exit.")
+			log.Println("Program will exit. UploadData completed will exit.")
 			isShutdown = true
 			// 停止监听
 			exitChan = nil
@@ -263,7 +269,7 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 
 	// 如果cpu数组为空, 则不上传数据
 	if len(cpuMemInfoData.Cpu.UsageList) == 0 {
-		log.Println("No data to send!")
+		log.Println("cpu data is empty! No data to upload.")
 		return
 	}
 
@@ -340,6 +346,7 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 	log.Println("Metrics sent successfully to " + config.EndPoint)
 }
 
+// 退出程序协程
 func exitRoutine() {
 	// 函数结束时通知等待组已完成
 	defer wg.Done()
@@ -361,13 +368,13 @@ func exitRoutine() {
 	// 15表示小时
 	// 04表示分钟, 4表示不带0的分钟
 	// 05表示秒, 5表示不带0的秒
-	log.Println("Server Exporter will shutdown at:", tomorrow.Format("2006-01-02 15:04:05"))
+	log.Println("Server Exporter will exit at:", tomorrow.Format("2006-01-02 15:04:05"))
 
 	// 等待一次性计时器的信号
 	for range shutdownTimer.C {
 		// 通知上传器停止
 		close(exitChan)
-		log.Println("Server Exporter shutdown time reached. Upload the last data and exit.")
+		log.Println("Server Exporter exit time reached. Upload the last data and exit.")
 		return
 	}
 }
@@ -462,11 +469,11 @@ func main() {
 	// 创建收集器和上传器的协程
 	wg.Add(3)
 	go exitRoutine()
-	go gatherData()
+	go gatherDataRoutine()
 	go uploadDataRoutine(&minute, config, client, buffer)
 
 	wg.Wait()
 	// 所有协程结束后退出
-	log.Println("Server Exporter exited. Goodbye!")
+	log.Println("Server Exporter will exit. Goodbye!")
 	os.Exit(0)
 }
