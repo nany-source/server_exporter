@@ -27,11 +27,11 @@ jobs:
 
     - name: Get commit ID
       id: vars
-      run: echo "{commit}={$(git rev-parse --short HEAD)}" >> $GITHUB_OUTPUT
+      run: echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Get build time
       id: buildtime
-      run: echo "{time}={$(date -u '+%Y-%m-%d %H:%M:%S')}" >> $GITHUB_OUTPUT
+      run: echo "time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
     - name: Build
       run: go build -v -ldflags "-X 'main.version=${{ steps.vars.outputs.commit }} at ${{ steps.buildtime.outputs.time }}'" -o server_exporter ./...
