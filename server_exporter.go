@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -426,7 +427,12 @@ func getMemInfo() (uint64, uint64, error) {
 }
 
 func main() {
+	// 文件锁路径
 	filePath := "/tmp/server_exporter.lock"
+	// 配置文件路径传参
+	configPath := flag.String("config", "server_exporter.json", "config file path")
+	// 解析传参
+	flag.Parse()
 
 	// 在临时文件夹创建文件锁防止重复运行
 	lock, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666)
@@ -447,7 +453,7 @@ func main() {
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 
 	// 加载配置文件
-	config, err := loadConfig("server_exporter.json")
+	config, err := loadConfig(*configPath)
 	// 解析报错，打印错误信息并退出
 	if err != nil {
 		fmt.Printf("Error loading config: %v", err)
