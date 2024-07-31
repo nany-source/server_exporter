@@ -426,13 +426,15 @@ func getMemInfo() (uint64, uint64, error) {
 }
 
 func main() {
-	// 创建文件锁防止重复运行
-	lock, err := os.Create("server_exporter.lock")
+	filePath := "/tmp/server_exporter.lock"
+
+	// 在临时文件夹创建文件锁防止重复运行
+	lock, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatalf("Error creating lock file: %v", err)
 	}
 	// 程序退出时删除文件锁并关闭文件
-	defer os.Remove("server_exporter.lock")
+	defer os.Remove(filePath)
 	defer lock.Close()
 
 	// 创建独占文件锁
