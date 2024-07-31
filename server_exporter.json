@@ -1,0 +1,6 @@
+{
+    "server_name": "test",
+    "endpoint": "http://10.0.0.57:8000/api/test",
+    "app_token": "task",
+    "app_secret": "task"
+}
