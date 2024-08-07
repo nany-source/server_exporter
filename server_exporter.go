@@ -400,7 +400,7 @@ func getCpuTimes() (uint64, uint64, error) {
 // 返回值：size, used, error (失败返回0)
 func getDiskInfo() (uint64, uint64, error) {
 	// 执行shell命令获取磁盘信息
-	out, err := exec.Command("sh", "-c", "df -B1 / | grep / | awk '{printf \"%u %u\", $2, $3}'").Output()
+	out, err := exec.Command("sh", "-c", "df / | grep / | awk '{printf \"%u %u\", $2, $3}'").Output()
 	if err != nil {
 		return 0, 0, err
 	}
