@@ -52,6 +52,17 @@ case "$1" in
         # 配置文件设置权限
         chmod 644 ${SERVICE_CONF_PATH}
 
+        # 获取systemd版本
+        systemdVersion=$(systemctl --version | head -n 1 | awk '{print $2}')
+        # https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#DynamicUser=
+        # 低于232版本不支持DynamicUser, 需要换成ubuntu自带的无权限账户nobody
+        if [ ${systemdVersion} -lt 232 ]; then
+            USER_SETTING="User=nobody\nGroup=nobody"
+        else
+            # 232版本以上支持DynamicUser, 使用动态用户(防止nobody的安全警告)
+            USER_SETTING="DynamicUser=true"
+        fi
+
         # 创建服务
         echo "Create service..."
         cat > ${SERVICE_FILE_PATH} <<EOF
@@ -64,7 +75,7 @@ Type=simple
 ExecStart=${BINARY_FILE_PATH} -config=${SERVICE_CONF_PATH}
 Restart=always
 RestartSec=3
-DynamicUser=yes
+${USER_SETTING}
 
 [Install]
 WantedBy=multi-user.target
