@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"server_exporter/exportLogger"
 	"sync"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ var (
 	version    string      = "unknown"
 	cpuMemInfo *CpuMemInfo = newInfo()
 	response   *Response
+	logger     *exportLogger.Logger
 	mu         sync.Mutex
 	wg         sync.WaitGroup                       // 等待组
 	uploadChan chan struct{}  = make(chan struct{}) // 上传器通道
@@ -31,6 +33,7 @@ type Settings struct {
 	EndPoint   string `json:"endpoint"`
 	AppToken   string `json:"app_token"`
 	AppSecret  string `json:"app_secret"`
+	LogLevel   string `json:"log_level"`
 }
 
 // cpu和内存的信息
@@ -155,7 +158,7 @@ func gatherDataRoutine() {
 		select {
 		case <-uploadChan:
 			// 收到上传器通道的信号, 则退出循环
-			log.Println("Upload routine stopped! Gathering routine will stopped.")
+			logger.System("Upload routine stopped! Gathering routine will stopped.")
 			return
 		case <-ticker.C:
 			// 每6秒收集一次数据
@@ -169,13 +172,13 @@ func gatherData() {
 	// 获取内存占用率
 	memTotal, memUsed, err := getMemInfo()
 	if err != nil {
-		log.Println("Error getting memory info: ", err.Error())
+		logger.Error("Error getting memory info: " + err.Error())
 		return
 	}
 	// 获取cpu信息
 	cpuTotal, cpuIdle, err := getCpuTimes()
 	if err != nil {
-		log.Println("Error getting cpu info: ", err.Error())
+		logger.Error("Error getting cpu info: " + err.Error())
 		return
 	}
 
@@ -232,7 +235,7 @@ func uploadDataRoutine(minute *int64, config *Settings, client *http.Client, buf
 		select {
 		// 如果程序需要停止, 则标记为停止
 		case <-exitChan:
-			log.Println("Program will exit. UploadData completed will exit.")
+			logger.System("Program will exit. UploadData completed will exit.")
 			isShutdown = true
 			// 停止监听
 			exitChan = nil
@@ -270,14 +273,14 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 
 	// 如果cpu数组为空, 则不上传数据
 	if len(cpuMemInfoData.Cpu.UsageList) == 0 {
-		log.Println("cpu data is empty! No data to upload.")
+		logger.Warn("cpu data is empty! No data to upload.")
 		return
 	}
 
 	// 获取磁盘信息
 	diskSize, diskUsed, err := getDiskInfo()
 	if err != nil {
-		log.Println("Error getting disk info: ", err)
+		logger.Error("Error getting disk info: " + err.Error())
 		return
 	}
 
@@ -295,7 +298,7 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 	jsonData, err := json.Marshal(data)
 	// 构建错误, 打印错误信息并退出
 	if err != nil {
-		log.Println("Error marshalling data: ", err)
+		logger.Error("Error marshalling data: " + err.Error())
 		return
 	}
 
@@ -307,7 +310,7 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 	req, err := http.NewRequest("POST", config.EndPoint, buffer)
 	// 创建错误, 打印错误信息并退出
 	if err != nil {
-		log.Println("Error creating request: ", err)
+		logger.Error("Error creating request: " + err.Error())
 		return
 	}
 
@@ -320,7 +323,7 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 	resp, err := client.Do(req)
 	// 产生错误, 打印错误信息并退出
 	if err != nil {
-		log.Println("Error sending metrics: ", err)
+		logger.Error("Error sending metrics: " + err.Error())
 		return
 	}
 	// 结束函数时关闭响应体
@@ -329,22 +332,22 @@ func uploadData(config *Settings, client *http.Client, buffer *bytes.Buffer) {
 	// 发送成功, 解析响应体. 如果code不为0则为失败
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("Error reading response body: ", err)
+		logger.Error("Error reading response body: " + err.Error())
 		return
 	}
 
 	// 判断响应体的code如果不为0则返回错误信息
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		log.Println("Error unmarshalling response: ", err)
+		logger.Error("Error unmarshalling response: " + err.Error())
 		return
 	}
 	if response.Code != 0 {
-		log.Println("Error sending metrics: ", response.Msg)
+		logger.Error("Error sending metrics: " + response.Msg)
 		return
 	}
 
-	log.Println("Metrics sent successfully to " + config.EndPoint)
+	logger.Info("Metrics sent successfully to " + config.EndPoint)
 }
 
 // 退出程序协程
@@ -369,13 +372,13 @@ func exitRoutine() {
 	// 15表示小时
 	// 04表示分钟, 4表示不带0的分钟
 	// 05表示秒, 5表示不带0的秒
-	log.Println("Server Exporter will exit at:", tomorrow.Format("2006-01-02 15:04:05"))
+	logger.System("Server Exporter will exit at: " + tomorrow.Format("2006-01-02 15:04:05"))
 
 	// 等待一次性计时器的信号
 	for range shutdownTimer.C {
 		// 通知上传器停止
 		close(exitChan)
-		log.Println("Server Exporter exit time reached. Upload the last data and exit.")
+		logger.System("Server Exporter exit time reached. Upload the last data and exit.")
 		return
 	}
 }
@@ -468,6 +471,9 @@ func main() {
 	fmt.Println("Metrics will be sent to:", config.EndPoint)
 	fmt.Println("--------------------------------")
 
+	// 创建日志系统
+	logger = exportLogger.NewLogger(exportLogger.GetLevelByText(config.LogLevel))
+
 	// 创建http客户端
 	client := &http.Client{}
 	// 创建buffer对象
@@ -482,6 +488,6 @@ func main() {
 
 	wg.Wait()
 	// 所有协程结束后退出
-	log.Println("Server Exporter will exit. Goodbye!")
+	logger.Info("Server Exporter will exit. Goodbye!")
 	os.Exit(0)
 }

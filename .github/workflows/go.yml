@@ -10,9 +10,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-    name: Build server_exporter on ubuntu-latest
     runs-on: ubuntu-latest
 
     steps:
@@ -26,25 +24,44 @@ jobs:
     - name: Install musl-tools
       run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-    - name: Get commit ID
-      id: vars
-      run: echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-    - name: Get build time
-      id: buildtime
-      run: echo "time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+    - name: Get commit details
+      id: commit_details
+      run: |
+        echo "cd_time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+        echo "cd_commit=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        echo "cd_message=$(git log -1 --pretty=%B)" >> $GITHUB_ENV
 
     - name: Build
       run: |
-        CGO_ENABLED=1 CC=musl-gcc go build -v -ldflags "-linkmode external -extldflags '-static' -X 'main.version=${{ steps.vars.outputs.commit }} at ${{ steps.buildtime.outputs.time }}'" -o server_exporter ./...
+        CGO_ENABLED=1 CC=musl-gcc go build -v -ldflags "-linkmode external -extldflags '-static' -X 'main.version=${{ env.cd_commit }} at ${{ env.cd_time }}'" -o server_exporter ./...
 
     - name: Test
       run: go test -v ./...
 
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v4
+    - name: Calculate checksum
+      run: |
+        sha256sum server_exporter | awk '{print $1}' > server_exporter.sha256
+
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: server_exporter
-        path: |
-          server_exporter
-          server_exporter.json
+        tag_name: ${{ env.cd_commit }}
+        release_name: Release ${{ env.cd_commit }}
+        body: |
+          Build at ${{ env.cd_time }}
+          Binary checksum: $(cat server_exporter.sha256)
+          Commit message:
+            ${{ env.cd_message }}
+        draft: false
+        prerelease: false
+
+    # - name: Upload build artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: server_exporter
+    #     path: |
+    #       server_exporter
+    #       server_exporter.json
