@@ -31,11 +31,11 @@ jobs:
         echo "cd_commit=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
         echo "cd_message=$(git log -1 --pretty=%B)" >> $GITHUB_ENV
 
-    - name: Build
+    - name: Build server_exporter
       run: |
         CGO_ENABLED=1 CC=musl-gcc go build -v -ldflags "-linkmode external -extldflags '-static' -X 'main.version=${{ env.cd_commit }} at ${{ env.cd_time }}'" -o server_exporter server_exporter.go
 
-    - name: Test
+    - name: Test server_exporter
       run: go test -v server_exporter.go
 
     - name: Calculate checksum
@@ -48,21 +48,25 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ env.cd_commit }}
-        release_name: Release ${{ env.cd_commit }}
+        tag_name: "$cd_commit"
+        release_name: Release "$cd_commit"
         body: |
-          Build at ${{ env.cd_time }}
+          Build at "$cd_time"
           Commit message:
-            ${{ env.cd_message }}
+            "$cd_message"
         draft: false
         prerelease: false
+
+    - name: Get the upload URL for the release
+      id: upload_url
+      run: echo "UPLOAD_URL=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_ENV
 
     - name: Upload release binary
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: "$UPLOAD_URL"
         asset_path: ./server_exporter
         asset_name: server_exporter
         asset_content_type: application/octet-stream
@@ -72,7 +76,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: "$UPLOAD_URL"
         asset_path: ./server_exporter.sha256
         asset_name: server_exporter.sha256
         asset_content_type: text/plain
