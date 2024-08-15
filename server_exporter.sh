@@ -64,7 +64,8 @@ Type=simple
 ExecStart=${BINARY_FILE_PATH} -config=${SERVICE_CONF_PATH}
 Restart=always
 RestartSec=3
-DynamicUser=yes
+User=nobody
+Group=nogroup
 
 [Install]
 WantedBy=multi-user.target
