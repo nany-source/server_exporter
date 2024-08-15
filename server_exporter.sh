@@ -30,6 +30,11 @@ case "$1" in
 
         # 从github下载最新的二进制文件和配置文件
         echo "Download binary file and config file from github..."
+        # 检查目录是否存在,不存在则创建
+        if [ ! -d "/etc/server_exporter" ]; then
+            mkdir -p /etc/server_exporter
+        fi
+        # 下载文件
         curl -sSL ${BINARY_FILE_DOWNLOAD_URL} -o ${BINARY_FILE_PATH}
         curl -sSL ${CONFIG_FILE_DOWNLOAD_URL} -o ${SERVICE_CONF_PATH}
         # 获取下载的文件的checksum
