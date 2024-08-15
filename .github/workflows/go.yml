@@ -48,6 +48,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         name: ${{ env.cd_commit }}
+        tag_name: ${{ env.cd_commit }}
         files: |
           server_exporter
           server_exporter.sha256
