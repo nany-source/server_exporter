@@ -188,7 +188,10 @@ EOF
         ;;
     *)
         # 默认提示
-        echo "Usage: $0 [install|uninstall|info]"
-        exit 1
+        echo "Usage: $0 [install|uninstall|update]"
+        echo "- install: Install the exporter and create a service."
+        echo "- uninstall: Uninstall the exporter and remove the service."
+        echo "- update: Update the exporter to the latest version."
+        exit 0
         ;;
 esac

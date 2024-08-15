@@ -3,5 +3,5 @@
     "endpoint": "http://10.0.0.57:8000/api/test",
     "app_token": "task",
     "app_secret": "task",
-    "log_level": "info"
+    "log_level": "WARN"
 }

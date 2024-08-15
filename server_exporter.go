@@ -465,7 +465,7 @@ func main() {
 
 	// 显示启动信息
 	fmt.Println("--------------------------------")
-	fmt.Println("Server Exporter Started!")
+	fmt.Println("Server Exporter By Nany")
 	fmt.Println("Version:", version)
 	fmt.Println("Server Name:", config.ServerName)
 	fmt.Println("Metrics will be sent to:", config.EndPoint)
