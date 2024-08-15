@@ -43,43 +43,20 @@ jobs:
         sha256sum server_exporter | awk '{print $1}' > server_exporter.sha256
 
     - name: Create release
-      id: create_release
-      uses: actions/create-release@v1.1.4
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ env.cd_commit }}
-        release_name: Release ${{ env.cd_commit }}
+        name: ${{ env.cd_commit }}
+        files: |
+          server_exporter
+          server_exporter.sha256
         body: |
           Build at ${{ env.cd_time }}
           Commit message:
           ${{ env.cd_message }}
         draft: false
         prerelease: false
-
-    - name: Get the upload URL for the release
-      id: upload_url
-      run: echo "UPLOAD_URL=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_ENV
-
-    - name: Upload release binary
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: ./server_exporter
-        asset_name: server_exporter
-        asset_content_type: application/octet-stream
-
-    - name: Upload release sha256 checksum
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: ./server_exporter.sha256
-        asset_name: server_exporter.sha256
-        asset_content_type: text/plain
 
     # - name: Upload build artifact
     #   uses: actions/upload-artifact@v4
