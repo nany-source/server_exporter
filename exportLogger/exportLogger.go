@@ -23,7 +23,11 @@ type Logger struct {
 
 // 按照等级输出日志(私有方法)
 func (l *Logger) logMessage(level int, message string) {
-	if level >= l.level {
+	// 如果是go的测试环境，直接输出
+	if len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "-test") {
+		// l.Logger.Println(message)
+		log.Println(message)
+	} else if level >= l.level {
 		l.Logger.Println(message)
 	}
 }
