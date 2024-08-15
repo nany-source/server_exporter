@@ -25,7 +25,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y musl-tools
 
     - name: Get commit details
-      id: commit_details
+      id: vars
       run: |
         echo "cd_time=$(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
         echo "cd_commit=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
@@ -52,11 +52,30 @@ jobs:
         release_name: Release ${{ env.cd_commit }}
         body: |
           Build at ${{ env.cd_time }}
-          Binary checksum: $(cat server_exporter.sha256)
           Commit message:
             ${{ env.cd_message }}
         draft: false
         prerelease: false
+
+    - name: Upload release binary
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./server_exporter
+        asset_name: server_exporter
+        asset_content_type: application/octet-stream
+
+    - name: Upload release sha256 checksum
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./server_exporter.sha256
+        asset_name: server_exporter.sha256
+        asset_content_type: text/plain
 
     # - name: Upload build artifact
     #   uses: actions/upload-artifact@v4
