@@ -165,7 +165,7 @@ vi /etc/server_exporter/config.json
                 - `APP-Token`: app secret
             - Post body fields
                 - `cpu_c`: Occupancy rate for the last 1 minute of CPU.
-                - `cpu_m`: Maximum occupancy rate of CPU. (special use, defaults to 100)
+                - `cpu_m`: Maximum occupancy rate of CPU.
                 - `disk_c`: Used space of the "/" mount point. (KB)
                 - `disk_m`: Total space of the "/" mount point. (KB)
                 - `mem_c`: The amount of memory used. (KB)

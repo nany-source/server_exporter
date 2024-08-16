@@ -165,7 +165,7 @@ vi /etc/server_exporter/config.json
                 - `APP-Token`: 密钥
             - 请求体字段
                 - `cpu_c`: 最近1分钟的cpu占用率
-                - `cpu_m`: cpu的最大占用率(特殊用途, 默认以100为准即可)
+                - `cpu_m`: cpu的最大占用率
                 - `disk_c`: "/"挂载点的已使用空间 (KB)
                 - `disk_m`: "/"挂载点的总空间 (KB)
                 - `mem_c`: 内存使用量. (KB)
