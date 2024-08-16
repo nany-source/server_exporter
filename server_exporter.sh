@@ -100,12 +100,12 @@ EOF
 
         echo "Install success!"
 
-        # 安装完毕, 如果没默认编辑器则使用vi打开配置文件
-        if [ -z "${EDITOR}" ]; then
-            EDITOR="vi"
+        # 安装完毕, 如果没nano则使用vi编辑配置文件
+        if ! [ -x "$(command -v nano)" ]; then
+            vi ${SERVICE_CONF_PATH}
+        else
+            nano ${SERVICE_CONF_PATH}
         fi
-        # 使用默认编辑器编辑配置文件
-        ${EDITOR} ${SERVICE_CONF_PATH}
 
         # 提示
         echo "Config file path: ${SERVICE_CONF_PATH}"
