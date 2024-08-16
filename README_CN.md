@@ -16,6 +16,13 @@
     - 请注册为(Restart=always)服务或使用supervisor运行导出器.
 - 导出器会每分钟发送一次数据到接收地址.
 
+## 目录
+- [如何使用](#如何使用)
+    - [使用bash脚本](#使用bash脚本)
+    - [手动部署](#手动部署)
+- [配置文件](#配置文件)
+- [采集指标的POST数据](#采集指标的post数据)
+
 ## 如何使用
 ### 使用bash脚本
 - ### 下载bash脚本
@@ -55,7 +62,7 @@ curl -Lo server_exporter.sh https://raw.githubusercontent.com/nany-source/server
 </details>
 
 ### 手动部署
-- 例子 
+- 例如 
     - 导出器二进制文件路径:  **/usr/local/bin/server_exporter**
     - 导出器配置文件路径:  **/etc/server_exporter/config.json**
 
@@ -110,9 +117,9 @@ vi /etc/server_exporter/config.json
     systemctl start server_exporter
     ```
 
-- ## 配置文件
-    - 此配置文件为JSON格式.
-    - 默认配置文件如下.
+## 配置文件
+- 此配置文件为JSON格式.
+- 默认配置文件如下.
     ```json
     {
         "server_name": "test",
@@ -122,71 +129,71 @@ vi /etc/server_exporter/config.json
         "log_level": "WARN"
     }
     ```
-    - 配置文件的字段解释
-        - `server_name`: 服务器名称.
-        - `endpoint`:   接收采集指标的地址.  (格式 `http://ip:port/path`)
-        - `app_token`:  用于身份验证的应用程序的令牌.
-        - `app_secret`: 用于身份验证的应用程序的密钥.
-        - `log_level`: 
-            - 控制输出到控制台的日志级别.
-            - 日志级别有以下几种.
-                - `DEBUG`
-                - `INFO`
-                - `WARN`
-                - `ERROR`
-    - ⚠️请确保配置文件的路径正确并且导出器有权限读取配置文件.
+- 配置文件的字段解释
+    - `server_name`: 服务器名称.
+    - `endpoint`:   接收采集指标的地址.  (格式 `http://ip:port/path`)
+    - `app_token`:  用于身份验证的应用程序的令牌.
+    - `app_secret`: 用于身份验证的应用程序的密钥.
+    - `log_level`: 
+        - 控制输出到控制台的日志级别.
+        - 日志级别有以下几种.
+            - `DEBUG`
+            - `INFO`
+            - `WARN`
+            - `ERROR`
+- ⚠️请确保配置文件的路径正确并且导出器有权限读取配置文件.
 
-- ## 采集指标的POST数据
-    - 指标以以下格式发送到接收地址.
-        - 请求类型: **POST**
-        - 请求头
-            ```json
-            {
-                "APP-Key": 你在配置文件中设置的token,
-                "APP-Token": 你在配置文件中设置的secret,
-            }
-            ```
-        - 请求体
-            ```json
-            {
-                "cpu_c":7.605416876844534,
-                "cpu_m":10000,
-                "disk_c":49899104,
-                "disk_m":229585228,
-                "mem_c":1995728.8,
-                "mem_m":32745720,
-                "server":"test",
-                "ts":1723718855
-            }
-            ```
+## 采集指标的POST数据
+- 指标以以下格式发送到接收地址.
+    - 请求类型: **POST**
+    - 请求头
+        ```json
+        {
+            "APP-Key": 你在配置文件中设置的token,
+            "APP-Token": 你在配置文件中设置的secret,
+        }
+        ```
+    - 请求体
+        ```json
+        {
+            "cpu_c":7.605416876844534,
+            "cpu_m":10000,
+            "disk_c":49899104,
+            "disk_m":229585228,
+            "mem_c":1995728.8,
+            "mem_m":32745720,
+            "server":"test",
+            "ts":1723718855
+        }
+        ```
+    - 请求体字段
+        - 请求头字段
+            - `APP-Key`: 令牌
+            - `APP-Token`: 密钥
         - 请求体字段
-            - 请求头字段
-                - `APP-Key`: 令牌
-                - `APP-Token`: 密钥
-            - 请求体字段
-                - `cpu_c`: 最近1分钟的cpu占用率
-                - `cpu_m`: cpu的最大占用率
-                - `disk_c`: "/"挂载点的已使用空间 (KB)
-                - `disk_m`: "/"挂载点的总空间 (KB)
-                - `mem_c`: 内存使用量. (KB)
-                - `mem_m`: 内存总量. (KB)
-                - `server`: 服务器名称.
-                - `ts`: 发送时的时间戳.
-        
-        - **Curl 示例**
-            ```bash
-            curl -X POST http://your-api-endpoint/path \
-                -H "Content-Type: application/json" \
-                -H "APP-Key: 你在配置文件中设置的token," \
-                -H "APP-Token: 你在配置文件中设置的secret" \
-                -d '{
-                    "cpu_c": 7.605416876844534,
-                    "cpu_m": 10000,
-                    "disk_c": 49899104,
-                    "disk_m": 229585228,
-                    "mem_c": 1995728.8,
-                    "mem_m": 32745720,
-                    "server": "test",
-                    "ts": 1723718855
-                    }'
-            ```
+            - `cpu_c`: 最近1分钟的cpu占用率
+            - `cpu_m`: cpu的最大占用率
+            - `disk_c`: "/"挂载点的已使用空间 (KB)
+            - `disk_m`: "/"挂载点的总空间 (KB)
+            - `mem_c`: 内存使用量. (KB)
+            - `mem_m`: 内存总量. (KB)
+            - `server`: 服务器名称.
+            - `ts`: 发送时的时间戳.
+    
+    - **Curl 示例**
+        ```bash
+        curl -X POST http://your-api-endpoint/path \
+            -H "Content-Type: application/json" \
+            -H "APP-Key: 你在配置文件中设置的token," \
+            -H "APP-Token: 你在配置文件中设置的secret" \
+            -d '{
+                "cpu_c": 7.605416876844534,
+                "cpu_m": 10000,
+                "disk_c": 49899104,
+                "disk_m": 229585228,
+                "mem_c": 1995728.8,
+                "mem_m": 32745720,
+                "server": "test",
+                "ts": 1723718855
+                }'
+        ```

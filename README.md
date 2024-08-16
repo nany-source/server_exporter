@@ -16,6 +16,13 @@
     - Please register the exporter as a (Restart=always) service or used supervisor to run.
 - The exporter sends data to the endpoint every minute.
 
+## Table of Contents
+- [How to use](#how-to-use)
+    - [With bash script](#with-bash-script)
+    - [With Manual deployment](#with-manual-deployment)
+- [Configuration file](#configuration-file)
+- [Metrics Post Data](#metrics-post-data)
+
 ## How to use
 ### With bash script
 - ### Download the bash script
@@ -110,9 +117,9 @@ vi /etc/server_exporter/config.json
     systemctl start server_exporter
     ```
 
-- ## Configuration file
-    - The configuration file is a JSON format file.
-    - The default configuration file is as follows.
+## Configuration file
+- The configuration file is a JSON format file.
+- The default configuration file is as follows.
     ```json
     {
         "server_name": "test",
@@ -122,71 +129,71 @@ vi /etc/server_exporter/config.json
         "log_level": "WARN"
     }
     ```
-    - The configuration file has the following fields.
-        - `server_name`: The name of the server.
-        - `endpoint`:   The endpoint to send the metrics. (e.g `http://ip:port/path`)
-        - `app_token`:  token for the application.
-        - `app_secret`: secret key for the application.
-        - `log_level`: 
-            - Minimum log level to output to the console.
-            - The log level is one of the following.
-                - `DEBUG`
-                - `INFO`
-                - `WARN`
-                - `ERROR`
-    - ⚠️Please make sure that the path to save the config file is readable by the user running the exporter.
+- The configuration file has the following fields.
+    - `server_name`: The name of the server.
+    - `endpoint`:   The endpoint to send the metrics. (e.g `http://ip:port/path`)
+    - `app_token`:  token for the application.
+    - `app_secret`: secret key for the application.
+    - `log_level`: 
+        - Minimum log level to output to the console.
+        - The log level is one of the following.
+            - `DEBUG`
+            - `INFO`
+            - `WARN`
+            - `ERROR`
+- ⚠️Please make sure that the path to save the config file is readable by the user running the exporter.
 
-- ## Metrics Post Data
-    - The metrics are sent to the endpoint in the following format.
-        - Method: **POST**
-        - Header
-            ```json
-            {
-                "APP-Key": your_configuration_file_token,
-                "APP-Token": your_configuration_file_secret,
-            }
-            ```
-        - Post body
-            ```json
-            {
-                "cpu_c":7.605416876844534,
-                "cpu_m":10000,
-                "disk_c":49899104,
-                "disk_m":229585228,
-                "mem_c":1995728.8,
-                "mem_m":32745720,
-                "server":"test",
-                "ts":1723718855
-            }
-            ```
-        - The metrics are sent in the following format.
-            - Header fields (Used by your application to verify the source of the metrics)
-                - `APP-Key`: app token
-                - `APP-Token`: app secret
-            - Post body fields
-                - `cpu_c`: Occupancy rate for the last 1 minute of CPU.
-                - `cpu_m`: Maximum occupancy rate of CPU.
-                - `disk_c`: Used space of the "/" mount point. (KB)
-                - `disk_m`: Total space of the "/" mount point. (KB)
-                - `mem_c`: The amount of memory used. (KB)
-                - `mem_m`: Total memory. (KB)
-                - `server`: The name of the server.
-                - `ts`: The timestamp when the metrics were sent.
+## Metrics Post Data
+- The metrics are sent to the endpoint in the following format.
+    - Method: **POST**
+    - Header
+        ```json
+        {
+            "APP-Key": your_configuration_file_token,
+            "APP-Token": your_configuration_file_secret,
+        }
+        ```
+    - Post body
+        ```json
+        {
+            "cpu_c":7.605416876844534,
+            "cpu_m":10000,
+            "disk_c":49899104,
+            "disk_m":229585228,
+            "mem_c":1995728.8,
+            "mem_m":32745720,
+            "server":"test",
+            "ts":1723718855
+        }
+        ```
+    - The metrics are sent in the following format.
+        - Header fields (Used by your application to verify the source of the metrics)
+            - `APP-Key`: app token
+            - `APP-Token`: app secret
+        - Post body fields
+            - `cpu_c`: Occupancy rate for the last 1 minute of CPU.
+            - `cpu_m`: Maximum occupancy rate of CPU.
+            - `disk_c`: Used space of the "/" mount point. (KB)
+            - `disk_m`: Total space of the "/" mount point. (KB)
+            - `mem_c`: The amount of memory used. (KB)
+            - `mem_m`: Total memory. (KB)
+            - `server`: The name of the server.
+            - `ts`: The timestamp when the metrics were sent.
 
-        - **Curl example**
-            ```bash
-            curl -X POST http://your-api-endpoint/path \
-                -H "Content-Type: application/json" \
-                -H "APP-Key: your_configuration_file_token" \
-                -H "APP-Token: your_configuration_file_secret" \
-                -d '{
-                    "cpu_c": 7.605416876844534,
-                    "cpu_m": 10000,
-                    "disk_c": 49899104,
-                    "disk_m": 229585228,
-                    "mem_c": 1995728.8,
-                    "mem_m": 32745720,
-                    "server": "test",
-                    "ts": 1723718855
-                    }'
-            ```
+    - **Curl example**
+        ```bash
+        curl -X POST http://your-api-endpoint/path \
+            -H "Content-Type: application/json" \
+            -H "APP-Key: your_configuration_file_token" \
+            -H "APP-Token: your_configuration_file_secret" \
+            -d '{
+                "cpu_c": 7.605416876844534,
+                "cpu_m": 10000,
+                "disk_c": 49899104,
+                "disk_m": 229585228,
+                "mem_c": 1995728.8,
+                "mem_m": 32745720,
+                "server": "test",
+                "ts": 1723718855
+                }'
+        ```
