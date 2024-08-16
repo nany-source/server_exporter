@@ -45,7 +45,7 @@ jobs:
         CGO_ENABLED=1 CC=musl-gcc go build -v -ldflags "-linkmode external -extldflags '-static' -X 'main.version=${{ env.cd_commit }} at ${{ env.cd_time }}'" -o server_exporter server_exporter.go
 
     - name: Test server_exporter
-      run: go test -v server_exporter.go
+      run: go test -v ./...
 
     - name: Calculate checksum
       run: |
