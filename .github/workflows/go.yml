@@ -5,9 +5,18 @@ name: Go
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+      - '*.sh'
+      - '*.json'
+      - '**/.gitignore'
+      - '**/*_test.go'
+      - 'LICENSE'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/**'
 
 jobs:
   build:
