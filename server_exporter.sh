@@ -66,7 +66,7 @@ case "$1" in
         # 低于232版本不支持DynamicUser, 需要换成debian自带的无权限账户nobody
         if [ ${systemdVersion} -lt 232 ]; then
             echo "Systemd version is lower than 232, use nobody user."
-            USER_SETTING="User=nobody"$'\n'"Group=nobody"
+            USER_SETTING="User=nobody"$'\n'"Group=nogroup"
         else
             echo "Systemd version is greater than 232, use DynamicUser."
             # 232版本以上支持DynamicUser, 使用动态用户(防止nobody的安全警告)
