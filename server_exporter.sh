@@ -4,6 +4,7 @@
 BINARY_FILE_DOWNLOAD_URL="https://github.com/nany-source/server_exporter/releases/download/Github_Actions_Build/server_exporter"
 CHECKSUM_FILE_DOWNLOAD_URL="https://github.com/nany-source/server_exporter/releases/download/Github_Actions_Build/server_exporter.sha256"
 CONFIG_FILE_DOWNLOAD_URL="https://raw.githubusercontent.com/nany-source/server_exporter/main/server_exporter.json"
+BASH_SCRIPT_DOWNLOAD_URL="https://raw.githubusercontent.com/nany-source/server_exporter/main/server_exporter.sh"
 # 名称
 SERVICE_NAME="server-exporter"
 BINARY_FILE_NAME="server_exporter"
@@ -15,6 +16,12 @@ BINARY_FILE_PATH="/usr/local/bin/${BINARY_FILE_NAME}"
 # 检查是否为root用户运行 (root用户才有权限操作服务)
 if [ $(id -u) != "0" ]; then
     echo "Error: You must be root to run this script!" 1>&2
+    exit 1
+fi
+
+# 检查curl是否安装且可执行
+if ! [ -x "$(command -v curl)" ]; then
+    echo "Error: curl is not installed!" 1>&2
     exit 1
 fi
 
@@ -34,9 +41,8 @@ case "$1" in
         if [ ! -d "/etc/server_exporter" ]; then
             mkdir -p /etc/server_exporter
         fi
-        # 下载文件
+        # 下载二进制文件
         curl -sSL ${BINARY_FILE_DOWNLOAD_URL} -o ${BINARY_FILE_PATH}
-        curl -sSL ${CONFIG_FILE_DOWNLOAD_URL} -o ${SERVICE_CONF_PATH}
         # 获取下载的文件的checksum
         online_checksum=$(curl -sSL ${CHECKSUM_FILE_DOWNLOAD_URL})
         current_checksum=$(sha256sum ${BINARY_FILE_PATH} | awk '{print $1}')
@@ -45,6 +51,8 @@ case "$1" in
             echo "Error: Checksum verification failed!" 1>&2
             exit 1
         fi
+        # 下载配置文件
+        curl -sSL ${CONFIG_FILE_DOWNLOAD_URL} -o ${SERVICE_CONF_PATH}
 
         # 二进制文件设置可执行权限
         echo "Setting permissions..."
@@ -52,13 +60,15 @@ case "$1" in
         # 配置文件设置权限
         chmod 644 ${SERVICE_CONF_PATH}
 
-        # 获取systemd版本
+        # 获取systemd版本(根据版本动态设置安全账户)
         systemdVersion=$(systemctl --version | head -n 1 | awk '{print $2}')
         # https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#DynamicUser=
-        # 低于232版本不支持DynamicUser, 需要换成ubuntu自带的无权限账户nobody
+        # 低于232版本不支持DynamicUser, 需要换成debian自带的无权限账户nobody
         if [ ${systemdVersion} -lt 232 ]; then
-            USER_SETTING="User=nobody\nGroup=nobody"
+            echo "Systemd version is lower than 232, use nobody user."
+            USER_SETTING="User=nobody"$'\n'"Group=nobody"
         else
+            echo "Systemd version is greater than 232, use DynamicUser."
             # 232版本以上支持DynamicUser, 使用动态用户(防止nobody的安全警告)
             USER_SETTING="DynamicUser=true"
         fi
@@ -89,8 +99,17 @@ EOF
         systemctl enable ${SERVICE_NAME}
 
         echo "Install success!"
-        echo "Please edit the config file: ${SERVICE_CONF_PATH}"
-        echo "Edit the config file and then run 'systemctl start ${SERVICE_NAME}' to start the service."
+
+        # 安装完毕, 如果没默认编辑器则使用vi打开配置文件
+        if [ -z "${EDITOR}" ]; then
+            EDITOR="vi"
+        fi
+        # 使用默认编辑器编辑配置文件
+        ${EDITOR} ${SERVICE_CONF_PATH}
+
+        # 提示
+        echo "Config file path: ${SERVICE_CONF_PATH}"
+        echo "Run 'systemctl start ${SERVICE_NAME}' to start the service."
         ;;
     uninstall)
         # 检查是否已经安装
@@ -132,7 +151,7 @@ EOF
         fi
 
         # 从github获取最新的checksum信息
-        echo "Gettting checksum file from github..."
+        echo "Check binary file update..."
         online_checksum=$(curl -sSL ${CHECKSUM_FILE_DOWNLOAD_URL})
         if [ -z "${online_checksum}" ]; then
             echo "Error: Get online checksum failed!" 1>&2
@@ -146,7 +165,7 @@ EOF
         fi
 
         # 下载最新的二进制文件
-        echo "Download latest binary file from github..."
+        echo "Has new version! Download latest binary file from github..."
         # 下载到临时位置
         temp_binary_file_path="/tmp/github_actions_build_${BINARY_FILE_NAME}"
         curl -sSL ${BINARY_FILE_DOWNLOAD_URL} -o ${temp_binary_file_path}
