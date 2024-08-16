@@ -43,7 +43,7 @@ curl -Lo server_exporter.sh https://raw.githubusercontent.com/nany-source/server
         - 检查导出器的最新版本.
         - 如果最新版本与当前版本不同, 脚本将下载最新版本并重启服务.
 
-    - ### Uninstall
+    - ### 卸载
     ```bash
     ./server_exporter.sh uninstall
     ```
