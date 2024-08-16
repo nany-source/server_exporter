@@ -84,32 +84,32 @@ vi /etc/server_exporter/config.json
 ```
 - ### Create service (systemd) or use supervisor to run
     - If you want to create a service(systemd), you can use the following example.
+    ```bash
+    [Unit]
+    Description=Server Cpu/Mem/Disk Info exporter and upload
+    After=network.target
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/local/bin/server_exporter -config=/etc/server_exporter/config.json
+    Restart=always
+    RestartSec=3
+    ${USER_SETTING}
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
     - Create a service file in **/etc/systemd/system/server_exporter.service**. (working in Ubuntu 20.04 or higher)
         - ⚠️This path may vary depending on the distribution.
         - ⚠️Please check the path of the service file before creating it.
     - Please replace `${USER_SETTING}` with your settings.
         - e.g
             ```bash
-            User=user
-            Group=group
+            User=nobody
+            Group=nogroup
             ```
         - ⚠️**DON'T USE ROOT USER TO RUN THE EXPORTER.**
         - ⚠️**Please use nologin shell user to run the exporter(or limited permission account)**
-        ```bash
-        [Unit]
-        Description=Server Cpu/Mem/Disk Info exporter and upload
-        After=network.target
-
-        [Service]
-        Type=simple
-        ExecStart=/usr/local/bin/server_exporter -config=/etc/server_exporter/config.json
-        Restart=always
-        RestartSec=3
-        ${USER_SETTING}
-
-        [Install]
-        WantedBy=multi-user.target
-        ```
 - ### Enable and start the service
     ```bash
     systemctl daemon-reload

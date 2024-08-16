@@ -84,32 +84,32 @@ vi /etc/server_exporter/config.json
 ```
 - ### 创建服务(systemd)或使用supervisor运行
     - 如果您想创建一个服务(systemd), 您可以使用以下示例.
+    ```bash
+    [Unit]
+    Description=Server Cpu/Mem/Disk Info exporter and upload
+    After=network.target
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/local/bin/server_exporter -config=/etc/server_exporter/config.json
+    Restart=always
+    RestartSec=3
+    ${USER_SETTING}
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
     - 在 **/etc/systemd/system/server_exporter.service** 创建服务文件. (在 Ubuntu 20.04 或更高版本此路径可用)
         - ⚠️此路径会因为不同系统而有所不同.
         - ⚠️请在创建服务文件前检查服务文件的路径.
     - 请替换 `${USER_SETTING}` 为你的设定.
         - 例如
             ```bash
-            User=user
-            Group=group
+            User=nobody
+            Group=nogroup
             ```
         - ⚠️**不要使用ROOT账户运行导出器.**
         - ⚠️**请使用基于nologin shell的用户运行导出器(或有限权限的账户)**
-        ```bash
-        [Unit]
-        Description=Server Cpu/Mem/Disk Info exporter and upload
-        After=network.target
-
-        [Service]
-        Type=simple
-        ExecStart=/usr/local/bin/server_exporter -config=/etc/server_exporter/config.json
-        Restart=always
-        RestartSec=3
-        ${USER_SETTING}
-
-        [Install]
-        WantedBy=multi-user.target
-        ```
 - ### 启用并启动服务
     ```bash
     systemctl daemon-reload

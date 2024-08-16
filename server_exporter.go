@@ -403,7 +403,7 @@ func getCpuTimes() (uint64, uint64, error) {
 // 返回值：size, used, error (失败返回0)
 func getDiskInfo() (uint64, uint64, error) {
 	// 执行shell命令获取磁盘信息
-	out, err := exec.Command("sh", "-c", "df / | grep / | awk '{printf \"%u %u\", $2, $3}'").Output()
+	out, err := exec.Command("sh", "-c", "LANG=C df / | grep / | awk '{printf \"%u %u\", $2, $3}'").Output()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -418,7 +418,7 @@ func getDiskInfo() (uint64, uint64, error) {
 // 返回值：total, used, error (失败返回0)
 func getMemInfo() (uint64, uint64, error) {
 	// 执行shell命令获取内存信息
-	out, err := exec.Command("sh", "-c", "free | grep Mem | awk '{printf \"%u %u\", $2, $3}'").Output()
+	out, err := exec.Command("sh", "-c", "LANG=C free | grep Mem | awk '{printf \"%u %u\", $2, $3}'").Output()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -467,12 +467,13 @@ func main() {
 	fmt.Println("--------------------------------")
 	fmt.Println("Server Exporter By Nany")
 	fmt.Println("Version:", version)
-	fmt.Println("Server Name:", config.ServerName)
-	fmt.Println("Metrics will be sent to:", config.EndPoint)
 	fmt.Println("--------------------------------")
 
 	// 创建日志系统
 	logger = exportLogger.NewLogger(exportLogger.GetLevelByText(config.LogLevel))
+
+	logger.System("Server Name: " + config.ServerName)
+	logger.System("Metrics will be sent to: " + config.EndPoint)
 
 	// 创建http客户端
 	client := &http.Client{}
@@ -488,6 +489,6 @@ func main() {
 
 	wg.Wait()
 	// 所有协程结束后退出
-	logger.Info("Server Exporter will exit. Goodbye!")
+	logger.System("Server Exporter will exit. Goodbye!")
 	os.Exit(0)
 }
