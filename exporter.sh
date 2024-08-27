@@ -19,7 +19,7 @@ disk_total=0
 
 function get_memory() {
     # 从文件获取内存信息
-    local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; usage=(used/total)*100; print total, usage}' /proc/meminfo)
+    local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
 
     # 赋值给全局变量
     mem_total=$(echo $result | awk '{print $1}')
