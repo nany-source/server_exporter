@@ -3,8 +3,8 @@
 # 常量
 SERVERNAME=""
 ENDPOINT=""
+APP_KEY=""
 APP_TOKEN=""
-APP_SECRET=""
 CURL_MAX_TIMEOUT=6
 
 # 数据变量
@@ -108,7 +108,8 @@ EOF
     )
 
     # 发送数据
-    local result=$(curl -sSL -X POST -H "Content-Type: application/json" -H "APP-KEY: ${APP_TOKEN}" -H "APP-SECRET: ${APP_SECRET}" -d "${json_data}" ${ENDPOINT} --max-time ${CURL_MAX_TIMEOUT})
+    local result=$(curl -sSL -X POST -H "Content-Type: application/json" -H "APP-KEY: ${APP_KEY}" -H "APP-TOKEN: ${APP_TOKEN}" -d "${json_data}" ${ENDPOINT} --max-time ${CURL_MAX_TIMEOUT})
+    echo "Response: ${result}"
     # 如果发送成功则判断是否带特定字符串
     if [ $? -eq 0 ]; then
         if ! [[ $result == *'{"code":0'* ]]; then
@@ -137,8 +138,8 @@ fi
 if [ $# -ge 4 ]; then
     SERVERNAME=$1
     ENDPOINT=$2
-    APP_TOKEN=$3
-    APP_SECRET=$4
+    APP_KEY=$3
+    APP_TOKEN=$4
     # 如果第五个传参存在则赋值到curl的最大超时时间
     if [ $5 ]; then
         # 如果非数值则报错
