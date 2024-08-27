@@ -30,7 +30,7 @@ function get_memory() {
 
 function get_disk() {
     # 拿 /挂载点的磁盘信息(排除标题行且固定终端语言)
-    result=$(LANG=C df / | awk 'NR>1 {print $2, $3}')
+    local result=$(LANG=C df / | awk 'NR>1 {print $2, $3}')
 
     # 赋值给全局变量
     disk_total=$(echo $result | awk '{print $1}')
@@ -93,7 +93,7 @@ function post_data() {
     mem_usage=()
 
     # 构造要发送的数据结构
-    json_data=$(cat <<EOF
+    local json_data=$(cat <<EOF
 {
     "server": "${SERVERNAME}",
     "cpu_c": ${cpuAvg},
