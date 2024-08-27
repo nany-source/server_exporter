@@ -18,8 +18,9 @@ disk_used=0
 disk_total=0
 
 function get_memory() {
-    # 从文件获取内存信息
-    local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
+    # 从文件获取内存信息(不可使用/proc/meminfo, 因为free需要额外计算)
+    # local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
+    local result=$(LANG=C free | awk 'NR==2 {print $2, $3}')
 
     # 如果内存信息获取失败则不处理
     if [ -z "$result" ]; then
