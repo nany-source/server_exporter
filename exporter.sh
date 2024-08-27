@@ -17,18 +17,6 @@ mem_total=0
 disk_used=0
 disk_total=0
 
-# 检查curl是否安装且可执行
-if ! [ -x "$(command -v curl)" ]; then
-    echo "Error: curl is not installed!" 1>&2
-    exit 1
-fi
-
-# 检查是否安装bc数学运算库
-if ! [ -x "$(command -v bc)" ]; then
-    echo "Error: bc is not installed!" 1>&2
-    exit 1
-fi
-
 function get_memory() {
     # 从文件获取内存信息
     local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; usage=(used/total)*100; print total, usage}' /proc/meminfo)
@@ -131,6 +119,20 @@ EOF
     fi
 }
 
+####################################################### MAIN #######################################################
+
+# 检查curl是否安装且可执行
+if ! [ -x "$(command -v curl)" ]; then
+    echo "Error: curl is not installed!" 1>&2
+    exit 1
+fi
+
+# 检查是否安装bc数学运算库
+if ! [ -x "$(command -v bc)" ]; then
+    echo "Error: bc is not installed!" 1>&2
+    exit 1
+fi
+
 # 接收传参
 if [ $# -ge 4 ]; then
     SERVERNAME=$1
@@ -179,6 +181,6 @@ while true; do
         next_minute_timestamp=$(((current_timestamp/60+1)*60))
     fi
 
-    # 睡6秒
+    # 等待到下一次执行
     sleep $getData_interval
 done
