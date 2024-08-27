@@ -21,6 +21,11 @@ function get_memory() {
     # 从文件获取内存信息
     local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
 
+    # 如果内存信息获取失败则不处理
+    if [ -z "$result" ]; then
+        return
+    fi
+
     # 赋值给全局变量
     mem_total=$(echo $result | awk '{print $1}')
     mem_usage+=($(echo $result | awk '{print $2}'))
@@ -43,6 +48,11 @@ function get_cpu() {
     local result=$(awk '/^cpu / {print $2+$3+$4+$5+$6+$7+$8+$9, $5}' /proc/stat)
     local total=$(echo $result | awk '{print $1}')
     local idle=$(echo $result | awk '{print $2}')
+
+    # 如果获取失败则不处理
+    if [ -z "$result" ]; then
+        return
+    fi
 
     # 如果是首次则直接记录不进行比较运算
     if [ "$isFirstgather" = true ]; then
@@ -70,7 +80,7 @@ function post_data() {
     local memCount=${#mem_usage[@]}
 
     # 如果cpu的数组为空则不处理
-    if [ $cpuCount -eq 0 ]; then
+    if [ $cpuCount -le 0 ]; then
         return
     fi
 
@@ -83,10 +93,14 @@ function post_data() {
 
     # 计算内存的平均使用率
     local memSum=0
+    local memAvg=0
     for usage in ${mem_usage[@]}; do
         memSum=$(echo $memSum+$usage | bc)
     done
-    local memAvg=$(echo "scale=2; $memSum/$memCount" | bc)
+    # 如果内存数组大于0则取平均值，否则为0
+    if [ $memCount -gt 0 ]; then
+        memAvg=$(echo "scale=2; $memSum/$memCount" | bc)
+    fi
 
     # 清空数组
     cpu_usage=()
