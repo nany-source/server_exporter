@@ -109,7 +109,6 @@ EOF
 
     # 发送数据
     local result=$(curl -sSL -X POST -H "Content-Type: application/json" -H "APP-KEY: ${APP_KEY}" -H "APP-TOKEN: ${APP_TOKEN}" -d "${json_data}" ${ENDPOINT} --max-time ${CURL_MAX_TIMEOUT})
-    echo "Response: ${result}"
     # 如果发送成功则判断是否带特定字符串
     if [ $? -eq 0 ]; then
         if ! [[ $result == *'{"code":0'* ]]; then
