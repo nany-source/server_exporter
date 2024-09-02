@@ -2,16 +2,19 @@
 
 # 下载路径
 BINARY_FILE_DOWNLOAD_URL="https://github.com/nany-source/server_exporter/releases/download/Github_Actions_Build/server_exporter"
+BASH_EXPORTER_FILE_DOWNLOAD_URL="https://raw.githubusercontent.com/nany-source/server_exporter/main/exporter.sh"
 CHECKSUM_FILE_DOWNLOAD_URL="https://github.com/nany-source/server_exporter/releases/download/Github_Actions_Build/server_exporter.sha256"
 CONFIG_FILE_DOWNLOAD_URL="https://raw.githubusercontent.com/nany-source/server_exporter/main/server_exporter.json"
 BASH_SCRIPT_DOWNLOAD_URL="https://raw.githubusercontent.com/nany-source/server_exporter/main/server_exporter.sh"
 # 名称
 SERVICE_NAME="server-exporter"
 BINARY_FILE_NAME="server_exporter"
+BASH_EXPORTER_FILE_NAME="exporter.sh"
 # 放置路径
 SERVICE_FILE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 SERVICE_CONF_PATH="/etc/server_exporter/${SERVICE_NAME}.config"
 BINARY_FILE_PATH="/usr/local/bin/${BINARY_FILE_NAME}"
+BASH_EXPORTER_FILE_PATH="/usr/local/bin/${BASH_EXPORTER_FILE_NAME}"
 
 # 检查是否为root用户运行 (root用户才有权限操作服务)
 if [ $(id -u) != "0" ]; then
@@ -107,6 +110,66 @@ EOF
         echo "Config file path: ${SERVICE_CONF_PATH}"
         echo "Run 'systemctl start ${SERVICE_NAME}' to start the service."
         ;;
+    install_bash)
+        # 检查是否已经安装
+        server_status=$(systemctl list-unit-files | grep ${SERVICE_NAME} | awk '{print $2}')
+        if [ -n "${server_status}" ]; then
+            echo "Error: The service is already installed!" 1>&2
+            exit 1
+        fi
+
+        # 从github下载最新的脚本文件
+        echo "Download bash script file from github..."
+        curl -sSL ${BASH_EXPORTER_FILE_DOWNLOAD_URL} -o ${BASH_EXPORTER_FILE_PATH}
+
+        # 设置可执行权限
+        echo "Setting permissions..."
+        chmod 755 ${BASH_EXPORTER_FILE_PATH}
+
+        # 获取systemd版本(根据版本动态设置安全账户)
+        systemdVersion=$(systemctl --version | head -n 1 | awk '{print $2}')
+        # https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#DynamicUser=
+        # 低于232版本不支持DynamicUser, 需要换成debian自带的无权限账户nobody
+        if [ ${systemdVersion} -lt 232 ]; then
+            echo "Systemd version is lower than 232, use nobody user."
+            USER_SETTING="User=nobody"$'\n'"Group=nogroup"
+        else
+            echo "Systemd version is greater than 232, use DynamicUser."
+            # 232版本以上支持DynamicUser, 使用动态用户(防止nobody的安全警告)
+            USER_SETTING="DynamicUser=true"
+        fi
+
+        # 创建服务
+        echo "Create service..."
+        cat > ${SERVICE_FILE_PATH} <<EOF
+[Unit]
+Description=Server Cpu/Mem/Disk Info exporter and upload
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${BASH_EXPORTER_FILE_PATH} servername endpoint app-token app-secret
+Restart=always
+RestartSec=3
+${USER_SETTING}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        # 使用vi打开服务文件
+        vi ${SERVICE_FILE_PATH}
+
+        # 重载配置并启动服务
+        echo "Reload systemd..."
+        systemctl daemon-reload
+
+        echo "Enable service..."
+        systemctl enable ${SERVICE_NAME}
+
+        echo "Install success!"
+        echo "Run 'systemctl start ${SERVICE_NAME}' to start the service."
+        ;;
     uninstall)
         # 检查是否已经安装
         server_status=$(systemctl list-unit-files | grep ${SERVICE_NAME} | awk '{print $2}')
@@ -128,6 +191,7 @@ EOF
         # 删除二进制文件和配置文件
         echo "Removing binary file and config file..."
         rm -f ${BINARY_FILE_PATH}
+        rm -f ${BASH_EXPORTER_FILE_PATH}
         rm -f ${SERVICE_CONF_PATH}
 
         echo "Uninstall service success!"
