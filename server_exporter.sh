@@ -192,7 +192,7 @@ EOF
         echo "Removing binary file and config file..."
         rm -f ${BINARY_FILE_PATH}
         rm -f ${BASH_EXPORTER_FILE_PATH}
-        rm -f ${SERVICE_CONF_PATH}
+        # rm -f ${SERVICE_CONF_PATH}
 
         echo "Uninstall service success!"
         ;;
@@ -267,10 +267,11 @@ EOF
         ;;
     *)
         # 默认提示
-        echo "Usage: $0 [install|uninstall|update]"
-        echo "- install: Install the exporter and create a service."
+        echo "Usage: $0 [install|install_bash|uninstall|update]"
+        echo "- install: Install the exporter with binary version and create a service."
+        echo "- install_bash: Install the exporter with bash script version and create a service."
         echo "- uninstall: Uninstall the exporter and remove the service."
-        echo "- update: Update the exporter to the latest version."
+        echo "- update: Update the exporter with binary version to the latest version."
         exit 0
         ;;
 esac
