@@ -8,11 +8,13 @@ APP_TOKEN=""
 CURL_MAX_TIMEOUT=6
 
 # 数据变量
-isFirstgather=true
-cpu_usage=()
-cpu_total=0
-cpu_idle=0
-mem_usage=()
+cpu_total=(0, 0)
+cpu_total_now=0
+# 184467440772488221456
+cpu_idle=(0, 0)
+cpu_idle_now=0
+mem_used=(0, 0)
+mem_used_now=0
 mem_total=0
 disk_used=0
 disk_total=0
@@ -20,23 +22,32 @@ disk_total=0
 function get_memory() {
     # 从文件获取内存信息(不可使用/proc/meminfo, 因为free需要额外计算)
     # local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
-    local result=$(LANG=C free | awk 'NR==2 {print $2, $3}')
+    local result=$(LANG=C free | awk 'NR==2 {printf "%.0f %.0f", $2, $3}')
 
     # 如果内存信息获取失败则不处理
     if [ -z "$result" ]; then
         return
     fi
 
-    # 赋值给全局变量
+    # 获取数据
+    local used=$(echo $result | awk '{print $2}')
+    # total赋值给全局变量
     mem_total=$(echo $result | awk '{print $1}')
-    mem_usage+=($(echo $result | awk '{print $2}'))
 
-    # echo "mem_total: ${mem_total}, mem_usage: ${mem_usage[@]}"
+    # 如果第一个传参是true则记录在数组的第一个位置
+    if [ "$1" = true ]; then
+        mem_used[0]=$used
+    else
+        mem_used[1]=$used
+        mem_used_now=$used
+    fi
+
+    echo "mem_total: ${mem_total}, mem_used: ${mem_used[@]}"
 }
 
 function get_disk() {
     # 拿 /挂载点的磁盘信息(排除标题行且固定终端语言)
-    local result=$(LANG=C df / | awk 'NR>1 {print $2, $3}')
+    local result=$(LANG=C df / | awk 'NR>1 {printf "%.0f %.0f", $2, $3}')
 
     # 赋值给全局变量
     disk_total=$(echo $result | awk '{print $1}')
@@ -46,66 +57,60 @@ function get_disk() {
 }
 
 function get_cpu() {
-    local result=$(awk '/^cpu / {print $2+$3+$4+$5+$6+$7+$8+$9, $5}' /proc/stat)
-    local total=$(echo $result | awk '{print $1}')
-    local idle=$(echo $result | awk '{print $2}')
+    # 获取占用的total时间
+    local result=$(awk '/^cpu / {printf "%.0f %.0f", ($2+$3+$4+$5+$6+$7+$8+$9)/256, $5/256}' /proc/stat)
 
     # 如果获取失败则不处理
     if [ -z "$result" ]; then
         return
     fi
 
-    # 如果是首次则直接记录不进行比较运算
-    if [ "$isFirstgather" = true ]; then
-        cpu_total=$total
-        cpu_idle=$idle
-        isFirstgather=false
-    else
-        # 计算cpu使用率
-        cpu_usage+=($(echo "scale=2; (($total-$cpu_total)-($idle-$cpu_idle))/($total-$cpu_total)*100" | bc))
+    # 提取数据
+    local total=$(echo $result | awk '{print $1}')
+    local idle=$(echo $result | awk '{print $2}')
 
-        # 更新全局变量
-        cpu_total=$total
-        cpu_idle=$idle
+    # 如果第一个传参是true则记录在数组的第一个位置
+    if [ "$1" = true ]; then
+        cpu_total[0]=$total
+        cpu_idle[0]=$idle
+    else
+        # 否则更新数组的第二个位置
+        cpu_total[1]=$total
+        cpu_total_now=$total
+        cpu_idle[1]=$idle
+        cpu_idle_now=$idle
     fi
 
-    # echo "total: ${cpu_total}, idle: ${cpu_idle}, cpu_usage: ${cpu_usage[@]}"
+    echo "total: ${cpu_total[@]}, idle: ${cpu_idle[@]}"
 }
 
 function post_data() {
+    # 获取cpu和内存信息
+    get_cpu
+    get_memory
     # 获取一次磁盘信息
     get_disk
 
-    # 获取数组长度
-    local cpuCount=${#cpu_usage[@]}
-    local memCount=${#mem_usage[@]}
-
-    # 如果cpu的数组为空则不处理
-    if [ $cpuCount -le 0 ]; then
+    # 如果cpu/mem的数据有一个为0都不上传数据
+    if [ ${cpu_total[0]} -eq 0 ] || [ ${cpu_total[1]} -eq 0 ] || [ ${cpu_idle[0]} -eq 0 ] || [ ${cpu_idle[1]} -eq 0 ]; then
         return
     fi
 
     # 计算cpu的平均使用率
-    local cpuSum=0
-    for usage in ${cpu_usage[@]}; do
-        cpuSum=$(echo $cpuSum+$usage | bc)
-    done
-    local cpuAvg=$(echo "scale=2; ($cpuSum/$cpuCount)*100" | bc)
+    local cpuAvg=$(echo "scale=2; (1-((${cpu_idle[1]}-${cpu_idle[0]})/(${cpu_total[1]}-${cpu_total[0]})))*10000" | bc)
+    # 把now值写入对应数组的第一个位置
+    cpu_total[0]=$cpu_total_now
+    cpu_idle[0]=$cpu_idle_now
 
     # 计算内存的平均使用率
     local memSum=0
     local memAvg=0
-    for usage in ${mem_usage[@]}; do
+    for usage in ${mem_used[@]}; do
         memSum=$(echo $memSum+$usage | bc)
     done
     # 如果内存数组大于0则取平均值，否则为0
-    if [ $memCount -gt 0 ]; then
-        memAvg=$(echo "scale=2; $memSum/$memCount" | bc)
-    fi
-
-    # 清空数组
-    cpu_usage=()
-    mem_usage=()
+    memAvg=$(echo "scale=2; $memSum/2" | bc)
+    mem_used[0]=$mem_used_now
 
     # 构造要发送的数据结构
     local json_data=$(cat <<EOF
@@ -180,12 +185,12 @@ start_timestamp=$(date +%s)
 # 计算下一个整分钟的时间戳
 next_minute_timestamp=$(((start_timestamp/60+1)*60))
 
+# 先获取一次cpu和memory
+get_cpu true
+get_memory true
+
 # 循环获取数据
 while true; do
-    # 获取cpu和内存信息
-    get_cpu
-    get_memory
-
     # 获取当前时间戳
     current_timestamp=$(date +%s)
 
@@ -196,6 +201,10 @@ while true; do
         next_minute_timestamp=$(((current_timestamp/60+1)*60))
     fi
 
+    # 获取到下一分钟所需的秒数
+    sleep_seconds=$((next_minute_timestamp-current_timestamp))
+
     # 等待到下一次执行
-    sleep $getData_interval
+    echo "Sleep ${sleep_seconds} seconds..."
+    sleep $sleep_seconds
 done
