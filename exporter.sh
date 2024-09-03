@@ -19,6 +19,9 @@ mem_total=0
 disk_used=0
 disk_total=0
 
+# 输出debug信息
+debug=false
+
 function get_memory() {
     # 从文件获取内存信息(不可使用/proc/meminfo, 因为free需要额外计算)
     # local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
@@ -42,7 +45,9 @@ function get_memory() {
         mem_used_now=$used
     fi
 
-    echo "mem_total: ${mem_total}, mem_used: ${mem_used[@]}"
+    if [ "$debug" = true ]; then
+        echo "mem_total: ${mem_total}, mem_used: ${mem_used[@]}"
+    fi
 }
 
 function get_disk() {
@@ -53,7 +58,9 @@ function get_disk() {
     disk_total=$(echo $result | awk '{print $1}')
     disk_used=$(echo $result | awk '{print $2}')
 
-    # echo "disk_total: ${disk_total}, disk_used: ${disk_used}"
+    if [ "$debug" = true ]; then
+        echo "disk_total: ${disk_total}, disk_used: ${disk_used}"
+    fi
 }
 
 function get_cpu() {
@@ -81,7 +88,9 @@ function get_cpu() {
         cpu_idle_now=$idle
     fi
 
-    echo "total: ${cpu_total[@]}, idle: ${cpu_idle[@]}"
+    if [ "$debug" = true ]; then
+        echo "total: ${cpu_total[@]}, idle: ${cpu_idle[@]}"
+    fi
 }
 
 function post_data() {
@@ -205,6 +214,9 @@ while true; do
     sleep_seconds=$((next_minute_timestamp-current_timestamp))
 
     # 等待到下一次执行
-    echo "Sleep ${sleep_seconds} seconds..."
+    if [ "$debug" = true ]; then
+        echo "Sleep ${sleep_seconds} seconds..."
+    fi
+
     sleep $sleep_seconds
 done
