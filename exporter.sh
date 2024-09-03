@@ -6,18 +6,19 @@ ENDPOINT=""
 APP_KEY=""
 APP_TOKEN=""
 CURL_MAX_TIMEOUT=6
+# 每分钟的数据采样数(最大60)
+GETDATA_COUNT_MINUTE=6
+CPU_MAX=10000
 
 # 数据变量
-cpu_total=(0, 0)
-cpu_total_now=0
-# 184467440772488221456
-cpu_idle=(0, 0)
-cpu_idle_now=0
-mem_used=(0, 0)
-mem_used_now=0
+cpu_usage=()
+cpu_total=0
+cpu_idle=0
+mem_used=()
 mem_total=0
 disk_used=0
 disk_total=0
+is_first=true
 
 # 输出debug信息
 debug=false
@@ -32,18 +33,9 @@ function get_memory() {
         return
     fi
 
-    # 获取数据
-    local used=$(echo $result | awk '{print $2}')
-    # total赋值给全局变量
+    # 赋值给全局变量
     mem_total=$(echo $result | awk '{print $1}')
-
-    # 如果第一个传参是true则记录在数组的第一个位置
-    if [ "$1" = true ]; then
-        mem_used[0]=$used
-    else
-        mem_used[1]=$used
-        mem_used_now=$used
-    fi
+    mem_used+=($(echo $result | awk '{print $2}'))
 
     if [ "$debug" = true ]; then
         echo "mem_total: ${mem_total}, mem_used: ${mem_used[@]}"
@@ -77,39 +69,44 @@ function get_cpu() {
     local idle=$(echo $result | awk '{print $2}')
 
     # 如果第一个传参是true则记录在数组的第一个位置
-    if [ "$1" = true ]; then
-        cpu_total[0]=$total
-        cpu_idle[0]=$idle
+    if [ "$is_first" = true ]; then
+        cpu_total=$total
+        cpu_idle=$idle
+        is_first=false
     else
-        # 否则更新数组的第二个位置
-        cpu_total[1]=$total
-        cpu_total_now=$total
-        cpu_idle[1]=$idle
-        cpu_idle_now=$idle
+        # 计算出占用率
+        cpu_usage+=($(echo "scale=2; (1-($idle-$cpu_idle)/($total-$cpu_total))*$CPU_MAX" | bc))
+        # 把新数据记录下来
+        cpu_total=$total
+        cpu_idle=$idle
     fi
 
     if [ "$debug" = true ]; then
-        echo "total: ${cpu_total[@]}, idle: ${cpu_idle[@]}"
+        echo "cpu_usage: ${cpu_usage[@]}"
     fi
 }
 
 function post_data() {
-    # 获取cpu和内存信息
-    get_cpu
-    get_memory
     # 获取一次磁盘信息
     get_disk
 
-    # 如果cpu/mem的数据有一个为0都不上传数据
-    if [ ${cpu_total[0]} -eq 0 ] || [ ${cpu_total[1]} -eq 0 ] || [ ${cpu_idle[0]} -eq 0 ] || [ ${cpu_idle[1]} -eq 0 ]; then
+    # 如果cpu数组为空则放弃上传
+    if [ ${#cpu_usage[@]} -eq 0 ]; then
         return
     fi
 
+    # 获取数组长度
+    cpuCount=${#cpu_usage[@]}
+    memCount=${#mem_used[@]}
+
     # 计算cpu的平均使用率
-    local cpuAvg=$(echo "scale=2; (1-((${cpu_idle[1]}-${cpu_idle[0]})/(${cpu_total[1]}-${cpu_total[0]})))*10000" | bc)
-    # 把now值写入对应数组的第一个位置
-    cpu_total[0]=$cpu_total_now
-    cpu_idle[0]=$cpu_idle_now
+    local cpuSum=0
+    local cpuAvg=0
+    for usage in ${cpu_usage[@]}; do
+        cpuSum=$(echo $cpuSum+$usage | bc)
+    done
+    # 取平均值
+    cpuAvg=$(echo "scale=2; $cpuSum/$cpuCount" | bc)
 
     # 计算内存的平均使用率
     local memSum=0
@@ -117,16 +114,15 @@ function post_data() {
     for usage in ${mem_used[@]}; do
         memSum=$(echo $memSum+$usage | bc)
     done
-    # 如果内存数组大于0则取平均值，否则为0
-    memAvg=$(echo "scale=2; $memSum/2" | bc)
-    mem_used[0]=$mem_used_now
+    # 取平均值
+    memAvg=$(echo "scale=2; $memSum/$memCount" | bc)
 
     # 构造要发送的数据结构
     local json_data=$(cat <<EOF
 {
     "server": "${SERVERNAME}",
     "cpu_c": ${cpuAvg},
-    "cpu_m": 10000,
+    "cpu_m": ${CPU_MAX},
     "mem_c": ${memAvg},
     "mem_m": ${mem_total},
     "disk_c": ${disk_used},
@@ -135,6 +131,10 @@ function post_data() {
 }
 EOF
     )
+
+    # 清空数组
+    cpu_usage=()
+    mem_used=()
 
     # 发送数据
     local result=$(curl -sSL -X POST -H "Content-Type: application/json" -H "APP-KEY: ${APP_KEY}" -H "APP-TOKEN: ${APP_TOKEN}" -d "${json_data}" ${ENDPOINT} --max-time ${CURL_MAX_TIMEOUT})
@@ -185,8 +185,34 @@ fi
 
 echo "Server Exporter is running..."
 
-# 获取一次数据的间隔
-getData_interval=10
+# 计算每次获取数据的间隔
+# 对传参整数化
+GETDATA_COUNT_MINUTE=$(echo $GETDATA_COUNT_MINUTE | awk '{print int($1)}')
+# 如果执行失败,则退出程序
+if [ $? -ne 0 ]; then
+    echo "Error: The fifth parameter must be a number!" 1>&2
+    exit 1
+fi
+# 值大于60则为60, 小于1则为1
+if [ $GETDATA_COUNT_MINUTE -gt 60 ]; then
+    GETDATA_COUNT_MINUTE=60
+elif [ $GETDATA_COUNT_MINUTE -lt 1 ]; then
+    GETDATA_COUNT_MINUTE=1
+fi
+# 计算每次获取数据的间隔
+get_data_interval=$(echo $GETDATA_COUNT_MINUTE | awk '{print int(60/$1)}')
+# 如果执行失败,则退出程序
+if [ $? -ne 0 ]; then
+    echo "Error: The fifth parameter must be a number!" 1>&2
+    exit 1
+fi
+# 值小于1则为1
+if [ $get_data_interval -lt 1 ]; then
+    get_data_interval=1
+fi
+if [ "$debug" = true ]; then
+    echo "Get data interval: ${get_data_interval} seconds"
+fi
 
 # 获取脚本启动时的时间戳
 start_timestamp=$(date +%s)
@@ -194,12 +220,12 @@ start_timestamp=$(date +%s)
 # 计算下一个整分钟的时间戳
 next_minute_timestamp=$(((start_timestamp/60+1)*60))
 
-# 先获取一次cpu和memory
-get_cpu true
-get_memory true
-
 # 循环获取数据
 while true; do
+    # 采集数据
+    get_cpu
+    get_memory
+
     # 获取当前时间戳
     current_timestamp=$(date +%s)
 
@@ -210,13 +236,10 @@ while true; do
         next_minute_timestamp=$(((current_timestamp/60+1)*60))
     fi
 
-    # 获取到下一分钟所需的秒数
-    sleep_seconds=$((next_minute_timestamp-current_timestamp))
-
     # 等待到下一次执行
     if [ "$debug" = true ]; then
-        echo "Sleep ${sleep_seconds} seconds..."
+        echo "Sleep ${get_data_interval} seconds..."
     fi
 
-    sleep $sleep_seconds
+    sleep $get_data_interval
 done
