@@ -7,7 +7,7 @@ APP_KEY=""
 APP_TOKEN=""
 CURL_MAX_TIMEOUT=6
 # 每分钟的数据采样数(最大60)
-GETDATA_COUNT_MINUTE=6
+GETDATA_COUNT_MINUTE=10
 CPU_MAX=10000
 
 # 数据变量
@@ -212,6 +212,15 @@ if [ $get_data_interval -lt 1 ]; then
 fi
 if [ "$debug" = true ]; then
     echo "Get data interval: ${get_data_interval} seconds"
+fi
+
+# 如果cpumax小于100则为100
+CPU_MAX=$(echo $CPU_MAX | awk '{print int($1)}')
+if [ $CPU_MAX -lt 100 ]; then
+    CPU_MAX=100
+fi
+if [ "$debug" = true ]; then
+    echo "CPU_MAX: ${CPU_MAX}"
 fi
 
 # 获取脚本启动时的时间戳
