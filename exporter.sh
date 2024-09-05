@@ -25,7 +25,7 @@ debug=false
 
 function get_memory() {
     # 从文件获取内存信息(不可使用/proc/meminfo, 因为free需要额外计算)
-    # local result=$(awk '/MemTotal/ {total=$2} /MemFree/ {free=$2} END {used=total-free; print total, used}' /proc/meminfo)
+    # 获取total和used的值
     local result=$(LANG=C free | awk 'NR==2 {printf "%.0f %.0f", $2, $3}')
 
     # 如果内存信息获取失败则不处理
@@ -190,7 +190,7 @@ echo "Server Exporter is running..."
 GETDATA_COUNT_MINUTE=$(echo $GETDATA_COUNT_MINUTE | awk '{print int($1)}')
 # 如果执行失败,则退出程序
 if [ $? -ne 0 ]; then
-    echo "Error: The fifth parameter must be a number!" 1>&2
+    echo "Error: The getdata_count_minute must be a number!" 1>&2
     exit 1
 fi
 # 值大于60则为60, 小于1则为1
@@ -203,7 +203,7 @@ fi
 get_data_interval=$(echo $GETDATA_COUNT_MINUTE | awk '{print int(60/$1)}')
 # 如果执行失败,则退出程序
 if [ $? -ne 0 ]; then
-    echo "Error: The fifth parameter must be a number!" 1>&2
+    echo "Error: The getdata_count_minute must be a number!" 1>&2
     exit 1
 fi
 # 值小于1则为1
@@ -216,6 +216,11 @@ fi
 
 # 如果cpumax小于100则为100
 CPU_MAX=$(echo $CPU_MAX | awk '{print int($1)}')
+# 执行失败则退出程序
+if [ $? -ne 0 ]; then
+    echo "Error: The cpu_max must be a number!" 1>&2
+    exit 1
+fi
 if [ $CPU_MAX -lt 100 ]; then
     CPU_MAX=100
 fi
